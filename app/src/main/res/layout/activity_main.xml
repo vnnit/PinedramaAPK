@@ -92,8 +92,8 @@
         <EditText
             android:id="@+id/etVideoUrl"
             android:layout_width="match_parent"
-            android:layout_height="52dp"
-            android:layout_marginTop="10dp"
+            android:layout_height="50dp"
+            android:layout_marginTop="8dp"
             android:background="@drawable/edittext_tv_selector"
             android:focusable="true"
             android:focusableInTouchMode="true"
@@ -105,23 +105,53 @@
             android:textColorHint="@color/text_secondary"
             android:textSize="15sp" />
 
-        <Button
-            android:id="@+id/btnPlay"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="48dp"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/btn_tv_selector"
-            android:focusable="true"
-            android:text="@string/btn_play"
-            android:textAllCaps="false"
-            android:textColor="@color/black"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnPlay"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/btn_tv_selector"
+                android:focusable="true"
+                android:text="@string/btn_play"
+                android:textAllCaps="false"
+                android:textColor="@color/black"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnLoginTikTok"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/btn_tv_selector"
+                android:focusable="true"
+                android:paddingHorizontal="16dp"
+                android:text="🔐 Đăng nhập TikTok"
+                android:textAllCaps="false"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLoginStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Trạng thái: Chưa đăng nhập TikTok"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
+            android:layout_marginTop="14dp"
             android:text="@string/recent_history"
             android:textColor="@color/white"
             android:textSize="16sp"
@@ -131,14 +161,14 @@
             android:id="@+id/rvHistory"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="6dp"
             android:layout_weight="1" />
 
         <!-- Bottom bar: Version & Update -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -147,7 +177,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Phiên bản: 1.0.0"
+                android:text="Phiên bản: 1.1.0"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 

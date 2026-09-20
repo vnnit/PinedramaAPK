@@ -5,8 +5,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.view.KeyEvent
 import android.view.View
+import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -80,7 +82,6 @@ class PlayerActivity : AppCompatActivity() {
 
                 override fun onPlayerError(error: PlaybackException) {
                     progressBar.visibility = View.GONE
-                    // If ExoPlayer fails, fallback to WebView
                     switchToWebView(videoUrl)
                 }
             })
@@ -93,7 +94,7 @@ class PlayerActivity : AppCompatActivity() {
         if (isDirectStreamUrl(url)) {
             playWithExoPlayer(url)
         } else {
-            // For general web links, inspect with WebView to capture video stream
+            // For general web links (TikTok, PineDrama, etc.)
             setupWebViewSniffer(url)
         }
     }
@@ -120,21 +121,35 @@ class PlayerActivity : AppCompatActivity() {
     private fun setupWebViewSniffer(targetUrl: String) {
         var videoStreamFound = false
 
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptThirdPartyCookies(fallbackWebView, true)
+
         fallbackWebView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            databaseEnabled = true
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
             mediaPlaybackRequiresUserGesture = false
-            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        fallbackWebView.webChromeClient = WebChromeClient()
+        fallbackWebView.webChromeClient = object : WebChromeClient() {
+            override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
+                val transport = resultMsg?.obj as? WebView.WebViewTransport
+                transport?.webView = view
+                resultMsg?.sendToTarget()
+                return true
+            }
+        }
+
         fallbackWebView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
                 val reqUrl = request?.url?.toString() ?: ""
                 val lower = reqUrl.lowercase()
                 if (!videoStreamFound && (lower.contains(".m3u8") || lower.contains(".mp4"))) {
-                    // Ignore tracking and ads
                     if (!lower.contains("googlesyndication") && !lower.contains("doubleclick")) {
                         videoStreamFound = true
                         handler.post {
@@ -147,13 +162,19 @@ class PlayerActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // If after 4 seconds no stream captured, show webview directly
+                cookieManager.flush()
                 handler.postDelayed({
                     if (!videoStreamFound && !isFinishing) {
                         progressBar.visibility = View.GONE
-                        switchToWebView(targetUrl)
+                        switchToWebView(url ?: targetUrl)
                     }
-                }, 4000)
+                }, 3000)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val next = request?.url?.toString() ?: ""
+                view?.loadUrl(next)
+                return true
             }
         }
 
@@ -164,7 +185,7 @@ class PlayerActivity : AppCompatActivity() {
         playerView.visibility = View.GONE
         fallbackWebView.visibility = View.VISIBLE
         progressBar.visibility = View.GONE
-        showNotice("Đang mở trình duyệt TV")
+        showNotice("Đang hiển thị trang web video")
     }
 
     private fun showNotice(text: String) {
@@ -216,6 +237,10 @@ class PlayerActivity : AppCompatActivity() {
                 return true
             }
             KeyEvent.KEYCODE_BACK -> {
+                if (fallbackWebView.visibility == View.VISIBLE && fallbackWebView.canGoBack()) {
+                    fallbackWebView.goBack()
+                    return true
+                }
                 finish()
                 return true
             }
