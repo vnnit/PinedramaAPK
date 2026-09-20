@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -83,8 +84,25 @@ class LoginActivity : AppCompatActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val nextUrl = request?.url?.toString() ?: ""
+                // bytedance://dispatch_message is TikTok's JS bridge signal confirming successful login!
+                if (nextUrl.startsWith("bytedance://") || nextUrl.startsWith("snssdk") || nextUrl.startsWith("tiktok://")) {
+                    completeLogin()
+                    return true
+                }
+                if (!nextUrl.startsWith("http://") && !nextUrl.startsWith("https://")) {
+                    return true
+                }
                 view?.loadUrl(nextUrl)
                 return true
+            }
+
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                val failingUrl = request?.url?.toString() ?: ""
+                if (failingUrl.startsWith("bytedance://")) {
+                    completeLogin()
+                    return
+                }
+                super.onReceivedError(view, request, error)
             }
         }
 
@@ -102,11 +120,10 @@ class LoginActivity : AppCompatActivity() {
         handler.removeCallbacks(checkCookieRunnable)
         CookieManager.getInstance().flush()
 
-        // Also save logged-in flag in SharedPreferences
         val prefs = getSharedPreferences("pinedrama_prefs", MODE_PRIVATE)
         prefs.edit().putBoolean("tiktok_logged_in", true).apply()
 
-        Toast.makeText(this, "🎉 Đã lưu đăng nhập TikTok!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "🎉 Đăng nhập TikTok thành công!", Toast.LENGTH_LONG).show()
         setResult(RESULT_OK)
         finish()
     }

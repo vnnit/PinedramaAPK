@@ -253,6 +253,12 @@ class PlayerActivity : AppCompatActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val next = request?.url?.toString() ?: ""
+                if (next.startsWith("bytedance://") || next.startsWith("snssdk") || next.startsWith("tiktok://")) {
+                    return true
+                }
+                if (!next.startsWith("http://") && !next.startsWith("https://")) {
+                    return true
+                }
                 view?.loadUrl(next)
                 return true
             }
