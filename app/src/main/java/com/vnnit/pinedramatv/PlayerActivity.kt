@@ -207,6 +207,8 @@ class PlayerActivity : AppCompatActivity() {
         fallbackWebView.visibility = View.VISIBLE
         progressBar.visibility = View.VISIBLE
 
+        fallbackWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
         cookieManager.setAcceptThirdPartyCookies(fallbackWebView, true)
@@ -236,32 +238,105 @@ class PlayerActivity : AppCompatActivity() {
                 super.onPageFinished(view, finishedUrl)
                 progressBar.visibility = View.GONE
                 cookieManager.flush()
-                showNotice("💡 Bấm phím Menu để bật chuột ảo, Lên/Xuống chuyển tập")
+                showNotice("💡 Bấm Menu: Mở/Đóng chọn tập | Lên/Xuống: Chuyển tập")
 
                 val js = """
                     (function() {
-                        const style = document.createElement('style');
-                        style.innerHTML = `
-                            header, [class*="download-bar"], [class*="banner"], [class*="login-bar"] {
-                                display: none !important;
+                        window.__toggleDrawer = function(show) {
+                            let style = document.getElementById('tv-custom-style');
+                            if (!style) {
+                                style = document.createElement('style');
+                                style.id = 'tv-custom-style';
+                                document.head.appendChild(style);
                             }
-                            body { background: #000 !important; }
-                        `;
-                        document.head.appendChild(style);
-
-                        const tryPlay = () => {
-                            const v = document.querySelector('video');
-                            if (v && v.paused) {
-                                v.muted = false;
-                                v.play().catch(() => {
-                                    v.muted = true;
-                                    v.play();
-                                });
+                            if (show) {
+                                style.innerHTML = `
+                                    *, *::before, *::after { backdrop-filter: none !important; filter: none !important; box-shadow: none !important; animation: none !important; }
+                                    header, nav, aside, [class*="DivSideNav"], [class*="action-bar"], [class*="ActionBar"], [class*="banner"], [class*="download-bar"], [class*="login-bar"], [class*="DivBlurBackground"], [class*="blur"], [class*="Blur"] { display: none !important; }
+                                    body { background: #000 !important; overflow: hidden !important; }
+                                    [class*="sidebar"], [class*="Sidebar"], [class*="detail-right"], [class*="series-detail"] {
+                                        display: block !important;
+                                        position: fixed !important;
+                                        top: 0 !important;
+                                        right: 0 !important;
+                                        width: 380px !important;
+                                        height: 100vh !important;
+                                        z-index: 9999999 !important;
+                                        background: rgba(18, 18, 18, 0.95) !important;
+                                        overflow-y: auto !important;
+                                    }
+                                    video {
+                                        position: fixed !important;
+                                        top: 0 !important;
+                                        left: 0 !important;
+                                        width: calc(100vw - 380px) !important;
+                                        height: 100vh !important;
+                                        object-fit: contain !important;
+                                        z-index: 9999 !important;
+                                        background: #000 !important;
+                                    }
+                                `;
+                            } else {
+                                style.innerHTML = `
+                                    *, *::before, *::after { backdrop-filter: none !important; filter: none !important; box-shadow: none !important; animation: none !important; }
+                                    header, nav, aside, [class*="DivSideNav"], [class*="action-bar"], [class*="ActionBar"], [class*="banner"], [class*="download-bar"], [class*="login-bar"], [class*="DivBlurBackground"], [class*="blur"], [class*="Blur"], [class*="sidebar"], [class*="Sidebar"], [class*="detail-right"], [class*="series-detail"] { display: none !important; }
+                                    body { background: #000 !important; overflow: hidden !important; }
+                                    [class*="DivVideoContainer"], [class*="video-container"], [class*="DivVideoWrapper"], [class*="DivPlayerContainer"] {
+                                        position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 99998 !important; background: #000 !important; display: flex !important; align-items: center !important; justify-content: center !important;
+                                    }
+                                    video {
+                                        position: fixed !important;
+                                        top: 0 !important;
+                                        left: 0 !important;
+                                        width: 100vw !important;
+                                        height: 100vh !important;
+                                        max-height: 100vh !important;
+                                        object-fit: contain !important;
+                                        z-index: 999999 !important;
+                                        background: #000 !important;
+                                    }
+                                `;
                             }
                         };
-                        tryPlay();
-                        setTimeout(tryPlay, 1000);
-                        setTimeout(tryPlay, 2500);
+
+                        window.__killLagAndAutoplay = function() {
+                            // 1. Remove duplicate background video streams that choke TV GPU
+                            const videos = document.querySelectorAll('video');
+                            if (videos.length > 1) {
+                                for (let i = 1; i < videos.length; i++) {
+                                    try {
+                                        videos[i].pause();
+                                        videos[i].src = '';
+                                        videos[i].parentElement?.removeChild(videos[i]);
+                                    } catch(e) {}
+                                }
+                            }
+
+                            // 2. Play main video
+                            const mainVideo = document.querySelector('video');
+                            if (mainVideo && mainVideo.paused) {
+                                mainVideo.muted = false;
+                                mainVideo.play().catch(() => {
+                                    mainVideo.muted = true;
+                                    mainVideo.play();
+                                });
+                            }
+
+                            // 3. Remove giant play button overlays
+                            const playIcons = document.querySelectorAll('[class*="play"], [class*="Play"]');
+                            playIcons.forEach(btn => {
+                                if (btn.tagName !== 'VIDEO' && btn.querySelector('video') === null && btn.clientHeight > 80 && btn.clientHeight < 400) {
+                                    btn.style.display = 'none';
+                                }
+                            });
+                        };
+
+                        window.__toggleDrawer(false);
+                        window.__killLagAndAutoplay();
+
+                        if (!window.__lagInterval) {
+                            window.__lagInterval = setInterval(window.__killLagAndAutoplay, 1500);
+                        }
                     })();
                 """.trimIndent()
                 view?.evaluateJavascript(js, null)
@@ -297,26 +372,29 @@ class PlayerActivity : AppCompatActivity() {
         showNotice("Tỉ lệ hình ảnh: $label")
     }
 
-    private fun toggleMouseMode() {
-        isMouseMode = !isMouseMode
-        virtualMouseHelper.setMouseEnabled(isMouseMode)
-        showNotice(if (isMouseMode) "🖱️ Đã BẬT chuột ảo (Di chuyển bằng D-pad, bấm OK để click)" else "🎮 Đã TẮT chuột ảo (Chế độ điều khiển Media)")
+    private var isDrawerOpen = false
+
+    private fun toggleDrawerAndMouse() {
+        isDrawerOpen = !isDrawerOpen
+        virtualMouseHelper.setMouseEnabled(isDrawerOpen)
+        fallbackWebView.evaluateJavascript("if (window.__toggleDrawer) { window.__toggleDrawer($isDrawerOpen); }", null)
+        showNotice(if (isDrawerOpen) "📂 Danh sách tập (Dùng chuột ảo chọn tập)" else "🎬 Đã ẩn danh sách - Toàn màn hình siêu mượt (0 lag)")
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val keyCode = event.keyCode
 
-        // Toggle Virtual Mouse on Menu key or Info key or Settings key
+        // Toggle Episode Drawer and Virtual Mouse on Menu key or Info key or Settings key
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_INFO || keyCode == KeyEvent.KEYCODE_SETTINGS) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                toggleMouseMode()
+                toggleDrawerAndMouse()
             }
             return true
         }
 
         if (fallbackWebView.visibility == View.VISIBLE) {
-            // When mouse mode is active in WebView, handle D-pad for cursor
-            if (isMouseMode && virtualMouseHelper.isMouseDpadKey(keyCode)) {
+            // When drawer is open in WebView, handle D-pad for cursor
+            if (isDrawerOpen && virtualMouseHelper.isMouseDpadKey(keyCode)) {
                 if (virtualMouseHelper.handleKeyEvent(event)) {
                     return true
                 }
@@ -355,6 +433,7 @@ class PlayerActivity : AppCompatActivity() {
                                              document.querySelector('[class*="next"]');
                             if (nextBtn) { nextBtn.click(); }
                             else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowDown', 'keyCode': 40, 'bubbles': true})); }
+                            if (window.__killLagAndAutoplay) setTimeout(window.__killLagAndAutoplay, 800);
                         """.trimIndent(), null)
                         showNotice("Tập tiếp theo ▶")
                         return true
@@ -366,6 +445,7 @@ class PlayerActivity : AppCompatActivity() {
                                              document.querySelector('[class*="prev"]');
                             if (prevBtn) { prevBtn.click(); }
                             else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowUp', 'keyCode': 38, 'bubbles': true})); }
+                            if (window.__killLagAndAutoplay) setTimeout(window.__killLagAndAutoplay, 800);
                         """.trimIndent(), null)
                         showNotice("Tập trước ◀")
                         return true
