@@ -1,0 +1,59 @@
+name: Build Android TV APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release TV APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: Prepare APK for Release
+        run: |
+          mkdir -p release_apk
+          cp app/build/outputs/apk/release/*.apk release_apk/PineDramaTV.apk
+          ls -la release_apk/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PineDramaTV-APK
+          path: release_apk/PineDramaTV.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-tv
+          name: "PineDrama TV v1.0.0 (Bản cho Sony Smart TV)"
+          body: |
+            ### 🎉 Ứng dụng PineDrama TV (Web-to-TV Player)
+            - 📱 **Quét mã QR từ điện thoại**: Tự động nhận link video (TikTok, PineDrama, web video, mp4, m3u8) và phát ngay lên TV.
+            - 📺 **Tối ưu 100% cho Remote TV**: Điều khiển Play/Pause, Tua tới/lùi 10s, Chỉnh co giãn màn hình (Fit/Zoom/Stretch) cực mượt.
+            - 🔄 **Tự động cập nhật**: Mỗi lần mở app, TV tự kiểm tra và cập nhật khi có phiên bản mới từ GitHub.
+          files: release_apk/PineDramaTV.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

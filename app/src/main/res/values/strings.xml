@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">PineDrama TV</string>
+    <string name="scan_qr_prompt">Quét mã QR bằng điện thoại để gửi video lên TV</string>
+    <string name="or_open_browser">Hoặc mở trình duyệt trên điện thoại truy cập:</string>
+    <string name="manual_input_title">Nhập link trực tiếp:</string>
+    <string name="paste_link_hint">Dán link video (TikTok, PineDrama, mp4, m3u8...)</string>
+    <string name="btn_play">Phát video</string>
+    <string name="recent_history">Video đã xem gần đây:</string>
+    <string name="status_listening">Máy chủ Wifi đang chạy trên cổng 8080</string>
+    <string name="status_stopped">Máy chủ Wifi chưa bật</string>
+    <string name="check_update">Kiểm tra cập nhật</string>
+    <string name="version_label">Phiên bản: %s</string>
+</resources>
