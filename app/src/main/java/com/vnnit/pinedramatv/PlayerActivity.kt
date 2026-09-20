@@ -8,6 +8,7 @@ import android.os.Looper
 import android.os.Message
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -15,6 +16,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -28,10 +30,12 @@ import androidx.media3.ui.PlayerView
 
 class PlayerActivity : AppCompatActivity() {
 
+    private lateinit var rootLayout: ViewGroup
     private lateinit var playerView: PlayerView
     private lateinit var fallbackWebView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvOverlayNotice: TextView
+    private lateinit var ivPlayerCursor: ImageView
 
     private var exoPlayer: ExoPlayer? = null
     private var videoUrl: String = ""
@@ -42,6 +46,9 @@ class PlayerActivity : AppCompatActivity() {
         Pair(AspectRatioFrameLayout.RESIZE_MODE_FILL, "Kéo giãn toàn màn hình (STRETCH)")
     )
 
+    private lateinit var virtualMouseHelper: VirtualMouseHelper
+    private var isMouseMode = false
+
     private val handler = Handler(Looper.getMainLooper())
     private val hideNoticeRunnable = Runnable {
         tvOverlayNotice.visibility = View.GONE
@@ -51,10 +58,16 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
 
+        rootLayout = findViewById(R.id.playerRootLayout)
         playerView = findViewById(R.id.playerView)
         fallbackWebView = findViewById(R.id.fallbackWebView)
         progressBar = findViewById(R.id.progressBar)
         tvOverlayNotice = findViewById(R.id.tvOverlayNotice)
+        ivPlayerCursor = findViewById(R.id.ivPlayerCursor)
+
+        virtualMouseHelper = VirtualMouseHelper(rootLayout, fallbackWebView, ivPlayerCursor).apply {
+            setMouseEnabled(false)
+        }
 
         videoUrl = intent.getStringExtra("EXTRA_URL") ?: ""
         if (videoUrl.isBlank()) {
@@ -91,7 +104,6 @@ class PlayerActivity : AppCompatActivity() {
     private fun loadContent(url: String) {
         val lower = url.lowercase()
 
-        // TikTok and PineDrama links have DRM / MSE blobs and playlists: must run in WebView with session!
         if (lower.contains("tiktok.com") || lower.contains("pinedrama")) {
             switchToWebView(url)
         } else if (isDirectStreamUrl(url)) {
@@ -152,7 +164,6 @@ class PlayerActivity : AppCompatActivity() {
                 val reqUrl = request?.url?.toString() ?: ""
                 val lower = reqUrl.lowercase()
                 if (!videoStreamFound && (lower.contains(".m3u8") || lower.contains(".mp4"))) {
-                    // Ignore ads, watermarks and logo bumper mp4s (< 5 seconds)
                     if (!lower.contains("googlesyndication") && !lower.contains("doubleclick") && !lower.contains("logo")) {
                         videoStreamFound = true
                         handler.post {
@@ -176,6 +187,12 @@ class PlayerActivity : AppCompatActivity() {
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val next = request?.url?.toString() ?: ""
+                if (next.startsWith("bytedance://") || next.startsWith("snssdk") || next.startsWith("tiktok://")) {
+                    return true
+                }
+                if (!next.startsWith("http://") && !next.startsWith("https://")) {
+                    return true
+                }
                 view?.loadUrl(next)
                 return true
             }
@@ -219,9 +236,8 @@ class PlayerActivity : AppCompatActivity() {
                 super.onPageFinished(view, finishedUrl)
                 progressBar.visibility = View.GONE
                 cookieManager.flush()
-                showNotice("Dùng phím Lên/Xuống chuyển tập, Trái/Phải để tua")
+                showNotice("💡 Bấm phím Menu để bật chuột ảo, Lên/Xuống chuyển tập")
 
-                // Inject CSS & JS to auto-play and hide headers/banners
                 val js = """
                     (function() {
                         const style = document.createElement('style');
@@ -271,7 +287,7 @@ class PlayerActivity : AppCompatActivity() {
         tvOverlayNotice.text = text
         tvOverlayNotice.visibility = View.VISIBLE
         handler.removeCallbacks(hideNoticeRunnable)
-        handler.postDelayed(hideNoticeRunnable, 2500)
+        handler.postDelayed(hideNoticeRunnable, 3000)
     }
 
     private fun toggleAspectRatio() {
@@ -281,9 +297,28 @@ class PlayerActivity : AppCompatActivity() {
         showNotice("Tỉ lệ hình ảnh: $label")
     }
 
+    private fun toggleMouseMode() {
+        isMouseMode = !isMouseMode
+        virtualMouseHelper.setMouseEnabled(isMouseMode)
+        showNotice(if (isMouseMode) "🖱️ Đã BẬT chuột ảo (Di chuyển bằng D-pad, bấm OK để click)" else "🎮 Đã TẮT chuột ảo (Chế độ điều khiển Media)")
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        // If webview is active (TikTok / ShortDrama)
+        // Toggle Virtual Mouse on Menu key or Info key
+        if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_INFO || keyCode == KeyEvent.KEYCODE_SETTINGS) {
+            toggleMouseMode()
+            return true
+        }
+
         if (fallbackWebView.visibility == View.VISIBLE) {
+            // If mouse mode is enabled in WebView
+            if (isMouseMode) {
+                if (virtualMouseHelper.handleKeyDown(keyCode, event)) {
+                    return true
+                }
+            }
+
+            // Media control mode in WebView
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                     fallbackWebView.evaluateJavascript(
@@ -310,7 +345,6 @@ class PlayerActivity : AppCompatActivity() {
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    // Next episode in playlist
                     fallbackWebView.evaluateJavascript("""
                         const nextBtn = document.querySelector('[data-e2e="arrow-right"]') || 
                                          document.querySelector('button[aria-label*="Next"]') || 
@@ -322,7 +356,6 @@ class PlayerActivity : AppCompatActivity() {
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    // Previous episode
                     fallbackWebView.evaluateJavascript("""
                         const prevBtn = document.querySelector('[data-e2e="arrow-left"]') || 
                                          document.querySelector('button[aria-label*="Previous"]') || 

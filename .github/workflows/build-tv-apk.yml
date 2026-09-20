@@ -47,13 +47,13 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.1-tv
-          name: "PineDrama TV v1.2.1 (Bản chuẩn: Bắt mã bytedance:// và hoàn tất đăng nhập)"
+          tag_name: v1.3.0-tv
+          name: "PineDrama TV v1.3.0 (Tích hợp Chuột ảo Virtual Mouse trên TV)"
           body: |
-            ### 🎉 PineDrama TV v1.2.1
-            - 🎯 **Bắt chính xác sự kiện đăng nhập TikTok**: Tự động nhận diện tín hiệu `bytedance://dispatch_message` khi bạn quét QR thành công để lưu phiên đăng nhập ngay lập tức.
-            - 🎬 **Phát mượt Short Drama**: Không bị đứng ở video logo TikTok 2 giây, mở thẳng vào danh sách tập.
-            - 🎮 **Chuyển tập bằng remote**: Bấm Lên / Xuống để chuyển tập (Next / Previous episode), Trái / Phải để tua 10s.
+            ### 🎉 PineDrama TV v1.3.0
+            - 🖱️ **Tích hợp Chuột ảo (Virtual Mouse)**: Bấm phím mũi tên trên remote TV để di chuyển con trỏ chuột, bấm OK để click vào bất kỳ nút nào trên web (Đăng nhập, Captcha, chọn tập).
+            - 🎮 **Chế độ xem video linh hoạt**: Trong lúc xem phim, bấm phím `Menu` hoặc `Info` để bật/tắt chuột ảo click màn hình.
+            - 🔐 **Không tự đóng màn hình đăng nhập sớm**: Quét QR thoải mái trên màn hình, xong xuôi bấm nút "Lưu & Xong".
           files: release_apk/PineDramaTV.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

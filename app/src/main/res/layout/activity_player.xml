@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/playerRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black"
@@ -16,7 +17,7 @@
         app:show_buffering="when_playing"
         app:use_controller="true" />
 
-    <!-- Fallback WebView for web-only video pages -->
+    <!-- Fallback WebView for web-only video pages (TikTok, PineDrama) -->
     <WebView
         android:id="@+id/fallbackWebView"
         android:layout_width="match_parent"
@@ -32,18 +33,28 @@
         android:indeterminateTint="@color/primary"
         android:visibility="gone" />
 
-    <!-- Status / Resize Overlay Toast -->
+    <!-- Status / Overlay Toast -->
     <TextView
         android:id="@+id/tvOverlayNotice"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="32dp"
-        android:background="#AA000000"
+        android:layout_marginTop="24dp"
+        android:background="#DD000000"
         android:paddingHorizontal="24dp"
         android:paddingVertical="10dp"
         android:textColor="@color/white"
-        android:textSize="18sp"
+        android:textSize="16sp"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
+    <!-- Virtual Mouse Cursor Overlay for Web Player -->
+    <ImageView
+        android:id="@+id/ivPlayerCursor"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/cursor_pointer"
+        android:elevation="12dp"
         android:visibility="gone" />
 
 </FrameLayout>

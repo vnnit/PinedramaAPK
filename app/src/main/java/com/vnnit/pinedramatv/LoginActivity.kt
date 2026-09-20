@@ -2,10 +2,9 @@ package com.vnnit.pinedramatv
 
 import android.annotation.SuppressLint
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -14,45 +13,33 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class LoginActivity : AppCompatActivity() {
 
+    private lateinit var rootLayout: ViewGroup
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
     private lateinit var btnDoneLogin: Button
+    private lateinit var ivVirtualCursor: ImageView
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var isFinished = false
-
-    private val checkCookieRunnable = object : Runnable {
-        override fun run() {
-            if (isFinished || isFinishing) return
-            val cm = CookieManager.getInstance()
-            val c1 = cm.getCookie("https://www.tiktok.com") ?: ""
-            val c2 = cm.getCookie("https://tiktok.com") ?: ""
-            val c3 = cm.getCookie(webView.url ?: "") ?: ""
-            val all = "$c1; $c2; $c3"
-
-            if (all.contains("sessionid") || all.contains("sid_tt") || all.contains("uid_tt") || all.contains("passport_auth_status")) {
-                cm.flush()
-                completeLogin()
-                return
-            }
-            handler.postDelayed(this, 1500)
-        }
-    }
+    private lateinit var virtualMouseHelper: VirtualMouseHelper
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
+        rootLayout = findViewById(R.id.loginRootLayout)
         webView = findViewById(R.id.loginWebView)
         progressBar = findViewById(R.id.loginProgressBar)
         btnDoneLogin = findViewById(R.id.btnDoneLogin)
+        ivVirtualCursor = findViewById(R.id.ivVirtualCursor)
+
+        virtualMouseHelper = VirtualMouseHelper(rootLayout, webView, ivVirtualCursor)
 
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
@@ -74,19 +61,12 @@ class LoginActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 cookieManager.flush()
-
-                val currentUrl = url ?: ""
-                val cookies = cookieManager.getCookie(currentUrl) ?: ""
-                if (cookies.contains("sessionid") || cookies.contains("sid_tt") || (currentUrl.contains("tiktok.com") && !currentUrl.contains("/login"))) {
-                    completeLogin()
-                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val nextUrl = request?.url?.toString() ?: ""
-                // bytedance://dispatch_message is TikTok's JS bridge signal confirming successful login!
+                // Ignore custom schemes so WebView doesn't crash with ERR_UNKNOWN_URL_SCHEME
                 if (nextUrl.startsWith("bytedance://") || nextUrl.startsWith("snssdk") || nextUrl.startsWith("tiktok://")) {
-                    completeLogin()
                     return true
                 }
                 if (!nextUrl.startsWith("http://") && !nextUrl.startsWith("https://")) {
@@ -98,8 +78,7 @@ class LoginActivity : AppCompatActivity() {
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 val failingUrl = request?.url?.toString() ?: ""
-                if (failingUrl.startsWith("bytedance://")) {
-                    completeLogin()
+                if (failingUrl.startsWith("bytedance://") || failingUrl.startsWith("snssdk") || failingUrl.startsWith("tiktok://")) {
                     return
                 }
                 super.onReceivedError(view, request, error)
@@ -111,19 +90,15 @@ class LoginActivity : AppCompatActivity() {
         }
 
         webView.loadUrl("https://www.tiktok.com/login/qrcode")
-        handler.postDelayed(checkCookieRunnable, 2000)
     }
 
     private fun completeLogin() {
-        if (isFinished) return
-        isFinished = true
-        handler.removeCallbacks(checkCookieRunnable)
         CookieManager.getInstance().flush()
 
         val prefs = getSharedPreferences("pinedrama_prefs", MODE_PRIVATE)
         prefs.edit().putBoolean("tiktok_logged_in", true).apply()
 
-        Toast.makeText(this, "🎉 Đăng nhập TikTok thành công!", Toast.LENGTH_LONG).show()
+        Toast.makeText(this, "🎉 Đã lưu phiên đăng nhập TikTok!", Toast.LENGTH_LONG).show()
         setResult(RESULT_OK)
         finish()
     }
@@ -133,12 +108,14 @@ class LoginActivity : AppCompatActivity() {
             completeLogin()
             return true
         }
+        if (virtualMouseHelper.handleKeyDown(keyCode, event)) {
+            return true
+        }
         return super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        handler.removeCallbacks(checkCookieRunnable)
         CookieManager.getInstance().flush()
         webView.destroy()
     }

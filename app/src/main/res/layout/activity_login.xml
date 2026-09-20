@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/loginRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/black">
@@ -7,8 +8,7 @@
     <WebView
         android:id="@+id/loginWebView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:focusable="true" />
+        android:layout_height="match_parent" />
 
     <ProgressBar
         android:id="@+id/loginProgressBar"
@@ -26,7 +26,7 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="24dp"
-        android:paddingVertical="12dp">
+        android:paddingVertical="10dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -37,17 +37,17 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Quét mã QR trên màn hình bằng app TikTok trên điện thoại"
+                android:text="🖱️ Dùng phím mũi tên di chuyển chuột, bấm OK để click"
                 android:textColor="@color/primary"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Sau khi bấm xác nhận trên điện thoại, TV sẽ tự động nhận diện."
-                android:textColor="@color/text_secondary"
+                android:text="Quét QR trên điện thoại -> Khi web vào trang chủ thì bấm nút [Lưu &amp; Xong]"
+                android:textColor="@color/white"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -56,13 +56,21 @@
             android:layout_width="wrap_content"
             android:layout_height="44dp"
             android:background="@drawable/btn_tv_selector"
-            android:focusable="true"
-            android:paddingHorizontal="16dp"
-            android:text="✅ Tôi đã quét xong"
+            android:focusable="false"
+            android:paddingHorizontal="20dp"
+            android:text="✅ Lưu &amp; Xong"
             android:textAllCaps="false"
             android:textColor="@color/black"
             android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>
+
+    <!-- Virtual Mouse Cursor Overlay -->
+    <ImageView
+        android:id="@+id/ivVirtualCursor"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@drawable/cursor_pointer"
+        android:elevation="10dp" />
 
 </FrameLayout>
