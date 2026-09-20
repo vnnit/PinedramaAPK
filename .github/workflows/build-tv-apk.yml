@@ -46,11 +46,16 @@ jobs:
           name: PineDramaTV-APK
           path: release_apk/PineDramaTV.apk
 
+      - name: Extract App Version
+        run: |
+          VERSION_NAME=$(grep "versionName" app/build.gradle | awk -F '"' '{print $2}')
+          echo "APP_VERSION=v${VERSION_NAME}-tv" >> $GITHUB_ENV
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: "PineDrama TV ${{ github.ref_name }} (Toàn màn hình & Không giật lag)"
+          tag_name: ${{ env.APP_VERSION }}
+          name: "PineDrama TV ${{ env.APP_VERSION }} (Toàn màn hình & Không giật lag)"
           body: |
             ### 🎉 PineDrama TV ${{ github.ref_name }}
             - 🚀 **Khắc phục triệt để giật lag**: Tự động tắt video nền mờ và bộ lọc GPU, bật Hardware Acceleration.

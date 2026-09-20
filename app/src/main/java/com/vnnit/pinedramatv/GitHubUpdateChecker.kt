@@ -35,7 +35,7 @@ data class GitHubAsset(
 
 object GitHubUpdateChecker {
     private const val GITHUB_REPO = "vnnit/PinedramaAPK"
-    private const val API_URL = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    private const val API_URL = "https://api.github.com/repos/$GITHUB_REPO/releases"
     private val client = OkHttpClient()
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -66,19 +66,25 @@ object GitHubUpdateChecker {
 
                 val bodyStr = response.body?.string() ?: return
                 try {
-                    val release = Gson().fromJson(bodyStr, GitHubRelease::class.java)
-                    val latestTag = release.tagName.trimStart('v', 'V')
-                    val currentVersion = getAppVersionName(context).trimStart('v', 'V')
+                    val listType = object : com.google.gson.reflect.TypeToken<List<GitHubRelease>>() {}.type
+                    val releases: List<GitHubRelease> = Gson().fromJson(bodyStr, listType)
 
-                    val apkAsset = release.assets?.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                    // Find latest TV release (tag contains -tv or v1.*)
+                    val tvRelease = releases.firstOrNull { it.tagName.contains("-tv", ignoreCase = true) }
+                        ?: releases.firstOrNull()
 
-                    if (isNewerVersion(latestTag, currentVersion) && apkAsset != null) {
+                    if (tvRelease == null) return
+
+                    val currentVersion = getAppVersionName(context)
+                    val apkAsset = tvRelease.assets?.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+
+                    if (isNewerVersion(tvRelease.tagName, currentVersion) && apkAsset != null) {
                         mainHandler.post {
-                            showUpdateDialog(context, release, apkAsset)
+                            showUpdateDialog(context, tvRelease, apkAsset)
                         }
                     } else if (showToastIfLatest) {
                         mainHandler.post {
-                            Toast.makeText(context, "Bạn đang dùng phiên bản mới nhất (v$currentVersion)", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Bạn đang dùng phiên bản mới nhất ($currentVersion)", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -88,10 +94,16 @@ object GitHubUpdateChecker {
         })
     }
 
-    private fun isNewerVersion(latest: String, current: String): Boolean {
+    private fun extractVersionNumbers(versionStr: String): List<Int> {
+        val regex = Regex("""(\d+(\.\d+)+)""")
+        val match = regex.find(versionStr)?.value ?: versionStr
+        return match.split(".").map { it.toIntOrNull() ?: 0 }
+    }
+
+    private fun isNewerVersion(latestTag: String, currentVersion: String): Boolean {
         try {
-            val latestParts = latest.split(".").map { it.toIntOrNull() ?: 0 }
-            val currentParts = current.split(".").map { it.toIntOrNull() ?: 0 }
+            val latestParts = extractVersionNumbers(latestTag)
+            val currentParts = extractVersionNumbers(currentVersion)
             val length = maxOf(latestParts.size, currentParts.size)
 
             for (i in 0 until length) {
@@ -101,7 +113,7 @@ object GitHubUpdateChecker {
                 if (l < c) return false
             }
         } catch (e: Exception) {
-            return latest != current
+            return latestTag != currentVersion
         }
         return false
     }
