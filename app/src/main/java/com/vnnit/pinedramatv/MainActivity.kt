@@ -61,9 +61,9 @@ class MainActivity : AppCompatActivity() {
         btnCheckUpdate = findViewById(R.id.btnCheckUpdate)
 
         val versionName = try {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.1.0"
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.2.0"
         } catch (e: Exception) {
-            "1.1.0"
+            "1.2.0"
         }
         tvVersion.text = getString(R.string.version_label, versionName)
     }
@@ -124,12 +124,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateLoginStatus() {
-        val cookies = CookieManager.getInstance().getCookie("https://www.tiktok.com") ?: ""
-        if (cookies.contains("sessionid=") || cookies.contains("sid_guard=")) {
+        val prefs = getSharedPreferences("pinedrama_prefs", MODE_PRIVATE)
+        val isFlagged = prefs.getBoolean("tiktok_logged_in", false)
+
+        val cm = CookieManager.getInstance()
+        val c1 = cm.getCookie("https://www.tiktok.com") ?: ""
+        val c2 = cm.getCookie("https://tiktok.com") ?: ""
+        val c3 = cm.getCookie("https://shortdrama.tiktok.com") ?: ""
+        val all = "$c1; $c2; $c3"
+        val hasSession = all.contains("sessionid") || all.contains("sid_tt") || all.contains("uid_tt") || all.contains("passport_auth_status")
+
+        if (isFlagged || hasSession) {
             tvLoginStatus.text = "Trạng thái: ✅ Đã đăng nhập TikTok (Xem trọn bộ danh sách tập)"
             tvLoginStatus.setTextColor(getColor(R.color.primary))
             btnLoginTikTok.text = "Đăng xuất"
             btnLoginTikTok.setOnClickListener {
+                prefs.edit().putBoolean("tiktok_logged_in", false).apply()
                 CookieManager.getInstance().removeAllCookies {
                     CookieManager.getInstance().flush()
                     updateLoginStatus()

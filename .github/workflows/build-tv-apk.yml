@@ -47,14 +47,13 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0-tv
-          name: "PineDrama TV v1.1.0 (Tích hợp Đăng nhập TikTok QR Code)"
+          tag_name: v1.2.0-tv
+          name: "PineDrama TV v1.2.0 (Fix phát video TikTok và đồng bộ trạng thái đăng nhập)"
           body: |
-            ### 🎉 PineDrama TV v1.1.0
-            - 🔐 **Đăng nhập TikTok trực tiếp trên TV**: Bấm nút Đăng nhập $\rightarrow$ Quét mã QR bằng app TikTok trên điện thoại là TV tự động đăng nhập.
-            - 🎬 **Mở khóa toàn bộ danh sách tập (Short Drama / Series)**: Xem mượt mà các link dạng `shortdrama.tiktok.com` và `tiktok.com/@.../video/...` mà không bao giờ bị lỗi 404 Goofy Server hay chặn login gate.
-            - 📺 **Fix lỗi WebView**: Hỗ trợ đầy đủ Cookie, Third-party Storage và xử lý cửa sổ pop-up.
-            - 🔄 **Tự động cập nhật**: Hỗ trợ update tự động từ GitHub.
+            ### 🎉 PineDrama TV v1.2.0
+            - 🎬 **Khắc phục lỗi phát video TikTok**: Không bị kẹt ở video logo TikTok 2 giây nữa, phát thẳng vào video phim và toàn bộ danh sách tập.
+            - 🎮 **Điều khiển Remote TV**: Bấm Lên / Xuống để chuyển tập (Next / Previous episode), Trái / Phải tua 10s, OK Play/Pause.
+            - 🔐 **Đồng bộ trạng thái đăng nhập**: Tự động nhận diện cookie và lưu trạng thái đăng nhập TikTok vĩnh viễn trên TV.
           files: release_apk/PineDramaTV.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

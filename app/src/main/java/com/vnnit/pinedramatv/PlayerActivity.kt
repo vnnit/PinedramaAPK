@@ -89,12 +89,14 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     private fun loadContent(url: String) {
-        progressBar.visibility = View.VISIBLE
+        val lower = url.lowercase()
 
-        if (isDirectStreamUrl(url)) {
+        // TikTok and PineDrama links have DRM / MSE blobs and playlists: must run in WebView with session!
+        if (lower.contains("tiktok.com") || lower.contains("pinedrama")) {
+            switchToWebView(url)
+        } else if (isDirectStreamUrl(url)) {
             playWithExoPlayer(url)
         } else {
-            // For general web links (TikTok, PineDrama, etc.)
             setupWebViewSniffer(url)
         }
     }
@@ -150,7 +152,8 @@ class PlayerActivity : AppCompatActivity() {
                 val reqUrl = request?.url?.toString() ?: ""
                 val lower = reqUrl.lowercase()
                 if (!videoStreamFound && (lower.contains(".m3u8") || lower.contains(".mp4"))) {
-                    if (!lower.contains("googlesyndication") && !lower.contains("doubleclick")) {
+                    // Ignore ads, watermarks and logo bumper mp4s (< 5 seconds)
+                    if (!lower.contains("googlesyndication") && !lower.contains("doubleclick") && !lower.contains("logo")) {
                         videoStreamFound = true
                         handler.post {
                             playWithExoPlayer(reqUrl)
@@ -181,11 +184,81 @@ class PlayerActivity : AppCompatActivity() {
         fallbackWebView.loadUrl(targetUrl)
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     private fun switchToWebView(url: String) {
         playerView.visibility = View.GONE
         fallbackWebView.visibility = View.VISIBLE
-        progressBar.visibility = View.GONE
-        showNotice("Đang hiển thị trang web video")
+        progressBar.visibility = View.VISIBLE
+
+        val cookieManager = CookieManager.getInstance()
+        cookieManager.setAcceptCookie(true)
+        cookieManager.setAcceptThirdPartyCookies(fallbackWebView, true)
+
+        fallbackWebView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
+            mediaPlaybackRequiresUserGesture = false
+            userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+
+        fallbackWebView.webChromeClient = object : WebChromeClient() {
+            override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message?): Boolean {
+                val transport = resultMsg?.obj as? WebView.WebViewTransport
+                transport?.webView = view
+                resultMsg?.sendToTarget()
+                return true
+            }
+        }
+
+        fallbackWebView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, finishedUrl: String?) {
+                super.onPageFinished(view, finishedUrl)
+                progressBar.visibility = View.GONE
+                cookieManager.flush()
+                showNotice("Dùng phím Lên/Xuống chuyển tập, Trái/Phải để tua")
+
+                // Inject CSS & JS to auto-play and hide headers/banners
+                val js = """
+                    (function() {
+                        const style = document.createElement('style');
+                        style.innerHTML = `
+                            header, [class*="download-bar"], [class*="banner"], [class*="login-bar"] {
+                                display: none !important;
+                            }
+                            body { background: #000 !important; }
+                        `;
+                        document.head.appendChild(style);
+
+                        const tryPlay = () => {
+                            const v = document.querySelector('video');
+                            if (v && v.paused) {
+                                v.muted = false;
+                                v.play().catch(() => {
+                                    v.muted = true;
+                                    v.play();
+                                });
+                            }
+                        };
+                        tryPlay();
+                        setTimeout(tryPlay, 1000);
+                        setTimeout(tryPlay, 2500);
+                    })();
+                """.trimIndent()
+                view?.evaluateJavascript(js, null)
+            }
+
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val next = request?.url?.toString() ?: ""
+                view?.loadUrl(next)
+                return true
+            }
+        }
+
+        fallbackWebView.loadUrl(url)
     }
 
     private fun showNotice(text: String) {
@@ -203,46 +276,105 @@ class PlayerActivity : AppCompatActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                exoPlayer?.let {
-                    if (it.isPlaying) {
-                        it.pause()
-                        showNotice("Tạm dừng")
-                    } else {
-                        it.play()
-                        showNotice("Tiếp tục phát")
-                    }
+        // If webview is active (TikTok / ShortDrama)
+        if (fallbackWebView.visibility == View.VISIBLE) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                    fallbackWebView.evaluateJavascript(
+                        "const v = document.querySelector('video'); if (v) { if (v.paused) v.play(); else v.pause(); }",
+                        null
+                    )
+                    showNotice("Tạm dừng / Phát tiếp")
                     return true
                 }
-            }
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                exoPlayer?.let {
-                    val newPos = (it.currentPosition - 10000).coerceAtLeast(0)
-                    it.seekTo(newPos)
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                    fallbackWebView.evaluateJavascript(
+                        "const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, v.currentTime - 10);",
+                        null
+                    )
                     showNotice("Tua lại: -10s")
                     return true
                 }
-            }
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                exoPlayer?.let {
-                    val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
-                    it.seekTo(newPos)
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                    fallbackWebView.evaluateJavascript(
+                        "const v = document.querySelector('video'); if (v) v.currentTime = Math.min(v.duration || 9999, v.currentTime + 10);",
+                        null
+                    )
                     showNotice("Tua tới: +10s")
                     return true
                 }
-            }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                toggleAspectRatio()
-                return true
-            }
-            KeyEvent.KEYCODE_BACK -> {
-                if (fallbackWebView.visibility == View.VISIBLE && fallbackWebView.canGoBack()) {
-                    fallbackWebView.goBack()
+                KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    // Next episode in playlist
+                    fallbackWebView.evaluateJavascript("""
+                        const nextBtn = document.querySelector('[data-e2e="arrow-right"]') || 
+                                         document.querySelector('button[aria-label*="Next"]') || 
+                                         document.querySelector('[class*="next"]');
+                        if (nextBtn) { nextBtn.click(); }
+                        else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowDown', 'keyCode': 40, 'bubbles': true})); }
+                    """.trimIndent(), null)
+                    showNotice("Tập tiếp theo ▶")
                     return true
                 }
-                finish()
-                return true
+                KeyEvent.KEYCODE_DPAD_UP -> {
+                    // Previous episode
+                    fallbackWebView.evaluateJavascript("""
+                        const prevBtn = document.querySelector('[data-e2e="arrow-left"]') || 
+                                         document.querySelector('button[aria-label*="Previous"]') || 
+                                         document.querySelector('[class*="prev"]');
+                        if (prevBtn) { prevBtn.click(); }
+                        else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowUp', 'keyCode': 38, 'bubbles': true})); }
+                    """.trimIndent(), null)
+                    showNotice("Tập trước ◀")
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK -> {
+                    if (fallbackWebView.canGoBack()) {
+                        fallbackWebView.goBack()
+                        return true
+                    }
+                    finish()
+                    return true
+                }
+            }
+        } else {
+            // ExoPlayer controls
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                    exoPlayer?.let {
+                        if (it.isPlaying) {
+                            it.pause()
+                            showNotice("Tạm dừng")
+                        } else {
+                            it.play()
+                            showNotice("Tiếp tục phát")
+                        }
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                    exoPlayer?.let {
+                        val newPos = (it.currentPosition - 10000).coerceAtLeast(0)
+                        it.seekTo(newPos)
+                        showNotice("Tua lại: -10s")
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                    exoPlayer?.let {
+                        val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
+                        it.seekTo(newPos)
+                        showNotice("Tua tới: +10s")
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    toggleAspectRatio()
+                    return true
+                }
+                KeyEvent.KEYCODE_BACK -> {
+                    finish()
+                    return true
+                }
             }
         }
         return super.onKeyDown(keyCode, event)
