@@ -46,9 +46,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Quét QR trên điện thoại -> Khi web vào trang chủ thì bấm nút [Lưu &amp; Xong]"
+                android:text="Đã quét QR xong? App sẽ TỰ ĐỘNG LƯU! (Hoặc bấm phím [BACK] để lưu ngay)"
                 android:textColor="@color/white"
-                android:textSize="12sp" />
+                android:textSize="13sp" />
         </LinearLayout>
 
         <Button
@@ -56,7 +56,8 @@
             android:layout_width="wrap_content"
             android:layout_height="44dp"
             android:background="@drawable/btn_tv_selector"
-            android:focusable="false"
+            android:focusable="true"
+            android:clickable="true"
             android:paddingHorizontal="20dp"
             android:text="✅ Lưu &amp; Xong"
             android:textAllCaps="false"
@@ -71,6 +72,8 @@
         android:layout_width="28dp"
         android:layout_height="28dp"
         android:src="@drawable/cursor_pointer"
-        android:elevation="10dp" />
+        android:elevation="10dp"
+        android:clickable="false"
+        android:focusable="false" />
 
 </FrameLayout>

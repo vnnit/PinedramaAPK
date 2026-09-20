@@ -303,120 +303,127 @@ class PlayerActivity : AppCompatActivity() {
         showNotice(if (isMouseMode) "🖱️ Đã BẬT chuột ảo (Di chuyển bằng D-pad, bấm OK để click)" else "🎮 Đã TẮT chuột ảo (Chế độ điều khiển Media)")
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        // Toggle Virtual Mouse on Menu key or Info key
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val keyCode = event.keyCode
+
+        // Toggle Virtual Mouse on Menu key or Info key or Settings key
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_INFO || keyCode == KeyEvent.KEYCODE_SETTINGS) {
-            toggleMouseMode()
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                toggleMouseMode()
+            }
             return true
         }
 
         if (fallbackWebView.visibility == View.VISIBLE) {
-            // If mouse mode is enabled in WebView
-            if (isMouseMode) {
-                if (virtualMouseHelper.handleKeyDown(keyCode, event)) {
+            // When mouse mode is active in WebView, handle D-pad for cursor
+            if (isMouseMode && virtualMouseHelper.isMouseDpadKey(keyCode)) {
+                if (virtualMouseHelper.handleKeyEvent(event)) {
                     return true
                 }
             }
 
-            // Media control mode in WebView
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                    fallbackWebView.evaluateJavascript(
-                        "const v = document.querySelector('video'); if (v) { if (v.paused) v.play(); else v.pause(); }",
-                        null
-                    )
-                    showNotice("Tạm dừng / Phát tiếp")
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                    fallbackWebView.evaluateJavascript(
-                        "const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, v.currentTime - 10);",
-                        null
-                    )
-                    showNotice("Tua lại: -10s")
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                    fallbackWebView.evaluateJavascript(
-                        "const v = document.querySelector('video'); if (v) v.currentTime = Math.min(v.duration || 9999, v.currentTime + 10);",
-                        null
-                    )
-                    showNotice("Tua tới: +10s")
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    fallbackWebView.evaluateJavascript("""
-                        const nextBtn = document.querySelector('[data-e2e="arrow-right"]') || 
-                                         document.querySelector('button[aria-label*="Next"]') || 
-                                         document.querySelector('[class*="next"]');
-                        if (nextBtn) { nextBtn.click(); }
-                        else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowDown', 'keyCode': 40, 'bubbles': true})); }
-                    """.trimIndent(), null)
-                    showNotice("Tập tiếp theo ▶")
-                    return true
-                }
-                KeyEvent.KEYCODE_DPAD_UP -> {
-                    fallbackWebView.evaluateJavascript("""
-                        const prevBtn = document.querySelector('[data-e2e="arrow-left"]') || 
-                                         document.querySelector('button[aria-label*="Previous"]') || 
-                                         document.querySelector('[class*="prev"]');
-                        if (prevBtn) { prevBtn.click(); }
-                        else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowUp', 'keyCode': 38, 'bubbles': true})); }
-                    """.trimIndent(), null)
-                    showNotice("Tập trước ◀")
-                    return true
-                }
-                KeyEvent.KEYCODE_BACK -> {
-                    if (fallbackWebView.canGoBack()) {
-                        fallbackWebView.goBack()
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        fallbackWebView.evaluateJavascript(
+                            "const v = document.querySelector('video'); if (v) { if (v.paused) v.play(); else v.pause(); }",
+                            null
+                        )
+                        showNotice("Tạm dừng / Phát tiếp")
                         return true
                     }
-                    finish()
-                    return true
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                        fallbackWebView.evaluateJavascript(
+                            "const v = document.querySelector('video'); if (v) v.currentTime = Math.max(0, v.currentTime - 10);",
+                            null
+                        )
+                        showNotice("Tua lại: -10s")
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                        fallbackWebView.evaluateJavascript(
+                            "const v = document.querySelector('video'); if (v) v.currentTime = Math.min(v.duration || 9999, v.currentTime + 10);",
+                            null
+                        )
+                        showNotice("Tua tới: +10s")
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        fallbackWebView.evaluateJavascript("""
+                            const nextBtn = document.querySelector('[data-e2e="arrow-right"]') || 
+                                             document.querySelector('button[aria-label*="Next"]') || 
+                                             document.querySelector('[class*="next"]');
+                            if (nextBtn) { nextBtn.click(); }
+                            else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowDown', 'keyCode': 40, 'bubbles': true})); }
+                        """.trimIndent(), null)
+                        showNotice("Tập tiếp theo ▶")
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> {
+                        fallbackWebView.evaluateJavascript("""
+                            const prevBtn = document.querySelector('[data-e2e="arrow-left"]') || 
+                                             document.querySelector('button[aria-label*="Previous"]') || 
+                                             document.querySelector('[class*="prev"]');
+                            if (prevBtn) { prevBtn.click(); }
+                            else { window.dispatchEvent(new KeyboardEvent('keydown', {'key': 'ArrowUp', 'keyCode': 38, 'bubbles': true})); }
+                        """.trimIndent(), null)
+                        showNotice("Tập trước ◀")
+                        return true
+                    }
+                    KeyEvent.KEYCODE_BACK -> {
+                        if (fallbackWebView.canGoBack()) {
+                            fallbackWebView.goBack()
+                            return true
+                        }
+                        finish()
+                        return true
+                    }
                 }
             }
         } else {
             // ExoPlayer controls
-            when (keyCode) {
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                    exoPlayer?.let {
-                        if (it.isPlaying) {
-                            it.pause()
-                            showNotice("Tạm dừng")
-                        } else {
-                            it.play()
-                            showNotice("Tiếp tục phát")
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                when (keyCode) {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        exoPlayer?.let {
+                            if (it.isPlaying) {
+                                it.pause()
+                                showNotice("Tạm dừng")
+                            } else {
+                                it.play()
+                                showNotice("Tiếp tục phát")
+                            }
+                            return true
                         }
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                        exoPlayer?.let {
+                            val newPos = (it.currentPosition - 10000).coerceAtLeast(0)
+                            it.seekTo(newPos)
+                            showNotice("Tua lại: -10s")
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                        exoPlayer?.let {
+                            val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
+                            it.seekTo(newPos)
+                            showNotice("Tua tới: +10s")
+                            return true
+                        }
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        toggleAspectRatio()
                         return true
                     }
-                }
-                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                    exoPlayer?.let {
-                        val newPos = (it.currentPosition - 10000).coerceAtLeast(0)
-                        it.seekTo(newPos)
-                        showNotice("Tua lại: -10s")
+                    KeyEvent.KEYCODE_BACK -> {
+                        finish()
                         return true
                     }
-                }
-                KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                    exoPlayer?.let {
-                        val newPos = (it.currentPosition + 10000).coerceAtMost(it.duration)
-                        it.seekTo(newPos)
-                        showNotice("Tua tới: +10s")
-                        return true
-                    }
-                }
-                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    toggleAspectRatio()
-                    return true
-                }
-                KeyEvent.KEYCODE_BACK -> {
-                    finish()
-                    return true
                 }
             }
         }
-        return super.onKeyDown(keyCode, event)
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onPause() {

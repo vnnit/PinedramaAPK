@@ -1,7 +1,8 @@
 package com.vnnit.pinedramatv
 
 import android.annotation.SuppressLint
-import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -27,6 +28,37 @@ class LoginActivity : AppCompatActivity() {
     private lateinit var ivVirtualCursor: ImageView
 
     private lateinit var virtualMouseHelper: VirtualMouseHelper
+    private var isLoginCompleted = false
+    private val handler = Handler(Looper.getMainLooper())
+
+    private val checkLoginRunnable = object : Runnable {
+        override fun run() {
+            if (isLoginCompleted || isFinishing) return
+
+            val cookies = CookieManager.getInstance().getCookie("https://www.tiktok.com") ?: ""
+            val currentUrl = webView.url ?: ""
+
+            val hasSessionCookie = cookies.contains("sessionid=") ||
+                    cookies.contains("sessionid_ss=") ||
+                    cookies.contains("sid_guard=")
+
+            val isHomeFeed = currentUrl.contains("tiktok.com") &&
+                    !currentUrl.contains("login/qrcode") &&
+                    !currentUrl.contains("/login") &&
+                    !currentUrl.contains("about:blank")
+
+            if (hasSessionCookie || isHomeFeed) {
+                isLoginCompleted = true
+                Toast.makeText(this@LoginActivity, "🎉 Phát hiện đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                handler.postDelayed({
+                    completeLogin()
+                }, 1000)
+                return
+            }
+
+            handler.postDelayed(this, 1200)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +93,12 @@ class LoginActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 cookieManager.flush()
+                checkLoginRunnable.run()
+            }
+
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                super.doUpdateVisitedHistory(view, url, isReload)
+                checkLoginRunnable.run()
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
@@ -90,9 +128,13 @@ class LoginActivity : AppCompatActivity() {
         }
 
         webView.loadUrl("https://www.tiktok.com/login/qrcode")
+        handler.postDelayed(checkLoginRunnable, 2500)
     }
 
     private fun completeLogin() {
+        if (isFinishing) return
+        isLoginCompleted = true
+        handler.removeCallbacksAndMessages(null)
         CookieManager.getInstance().flush()
 
         val prefs = getSharedPreferences("pinedrama_prefs", MODE_PRIVATE)
@@ -103,20 +145,28 @@ class LoginActivity : AppCompatActivity() {
         finish()
     }
 
-    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // First priority: Virtual mouse cursor controls
+        if (virtualMouseHelper.isEnabled && virtualMouseHelper.isMouseDpadKey(event.keyCode)) {
+            if (virtualMouseHelper.handleKeyEvent(event)) {
+                return true
+            }
+        }
+
+        // Second priority: Remote BACK button completes & saves login immediately
+        if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK) {
             completeLogin()
             return true
         }
-        if (virtualMouseHelper.handleKeyDown(keyCode, event)) {
-            return true
-        }
-        return super.onKeyDown(keyCode, event)
+
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        handler.removeCallbacksAndMessages(null)
         CookieManager.getInstance().flush()
         webView.destroy()
     }
 }
+
