@@ -3,6 +3,8 @@ name: Build Android TV APK
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -47,13 +49,14 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.0-tv
-          name: "PineDrama TV v1.3.0 (Tích hợp Chuột ảo Virtual Mouse trên TV)"
+          tag_name: ${{ github.ref_name }}
+          name: "PineDrama TV ${{ github.ref_name }} (Toàn màn hình & Không giật lag)"
           body: |
-            ### 🎉 PineDrama TV v1.3.0
-            - 🖱️ **Tích hợp Chuột ảo (Virtual Mouse)**: Bấm phím mũi tên trên remote TV để di chuyển con trỏ chuột, bấm OK để click vào bất kỳ nút nào trên web (Đăng nhập, Captcha, chọn tập).
-            - 🎮 **Chế độ xem video linh hoạt**: Trong lúc xem phim, bấm phím `Menu` hoặc `Info` để bật/tắt chuột ảo click màn hình.
-            - 🔐 **Không tự đóng màn hình đăng nhập sớm**: Quét QR thoải mái trên màn hình, xong xuôi bấm nút "Lưu & Xong".
+            ### 🎉 PineDrama TV ${{ github.ref_name }}
+            - 🚀 **Khắc phục triệt để giật lag**: Tự động tắt video nền mờ và bộ lọc GPU, bật Hardware Acceleration.
+            - 📺 **Toàn màn hình 100%**: Ẩn thanh bên, tối ưu xem phim không viền trên TV.
+            - 📂 **Menu chọn tập**: Bấm `Menu` để mở/đóng danh sách tập.
+            - 🎮 **Chuyển tập trên Remote**: Bấm `Xuống` (tập tiếp) / `Lên` (tập trước).
           files: release_apk/PineDramaTV.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
