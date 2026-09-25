@@ -245,7 +245,7 @@ class PlayerActivity : AppCompatActivity() {
 
                 val js = """
                     (function() {
-                        window.__setSplitLayout = function(is7030) {
+                        window.__setSplitLayout = function(showRightPanel) {
                             let style = document.getElementById('tv-custom-style');
                             if (!style) {
                                 style = document.createElement('style');
@@ -253,23 +253,31 @@ class PlayerActivity : AppCompatActivity() {
                                 document.head.appendChild(style);
                             }
 
-                            const killToastsAndAds = `
-                                [class*="inapp-notif"], [class*="Notice"], [class*="notice"], [class*="notif"],
-                                [class*="toast"], [class*="Toast"], ol[class*="css-"], li[class*="inapp-notif"],
-                                [class*="banner"], [class*="download-bar"], [class*="login-bar"],
-                                header, nav, [class*="DivSideNav"], [class*="action-bar"], [class*="ActionBar"] {
+                            style.innerHTML = `
+                                /* 1. Hide left navigation sidebar & top header */
+                                header, [class*="DivHeader"], [class*="DivSideNav"], [class*="AsideOneColumnSidebar"], [class*="DivSideNavPlaceholder"] {
                                     display: none !important;
-                                    visibility: hidden !important;
+                                    width: 0 !important;
+                                    height: 0 !important;
+                                    overflow: hidden !important;
+                                }
+
+                                /* 2. Hide all notification toasts, TikTok Shop popups, follow banners */
+                                [class*="inapp-notif"], [class*="Notice"], [class*="notice"], [class*="toast"], 
+                                [class*="Toast"], ol[class*="css-"], li[class*="inapp-notif"],
+                                [class*="banner-ads"], [class*="download-bar"], [class*="login-bar"],
+                                div[class*="shop-popup"], div[class*="popup"] {
+                                    display: none !important;
                                     opacity: 0 !important;
                                     pointer-events: none !important;
                                     height: 0 !important;
                                     overflow: hidden !important;
                                 }
+
+                                /* 3. Kill background blur & duplicate video to stop GPU lag */
                                 *, *::before, *::after {
                                     backdrop-filter: none !important;
                                     filter: none !important;
-                                    box-shadow: none !important;
-                                    animation: none !important;
                                 }
                                 [class*="DivBlurBackground"], [class*="blur"], [class*="Blur"] {
                                     display: none !important;
@@ -277,115 +285,28 @@ class PlayerActivity : AppCompatActivity() {
                                 body, html {
                                     background: #000 !important;
                                     overflow: hidden !important;
-                                    margin: 0 !important;
-                                    padding: 0 !important;
-                                    width: 100vw !important;
-                                    height: 100vh !important;
+                                }
+
+                                /* 4. Episode panel on the right (30%) */
+                                [class*="RightPanelContainer"] {
+                                    display: ` + (showRightPanel ? 'block' : 'none') + ` !important;
+                                    background: #141414 !important;
+                                    border-left: 1px solid #282828 !important;
+                                }
+
+                                /* Big buttons for episode grid on TV */
+                                [class*="DivEpisodeGrid"] {
+                                    display: grid !important;
+                                    grid-template-columns: repeat(4, 1fr) !important;
+                                    gap: 8px !important;
+                                }
+                                [class*="ButtonEpisode"] {
+                                    font-size: 18px !important;
+                                    font-weight: bold !important;
+                                    height: 48px !important;
+                                    border-radius: 8px !important;
                                 }
                             `;
-
-                            if (is7030) {
-                                style.innerHTML = killToastsAndAds + `
-                                    /* 70% VIDEO ON LEFT */
-                                    [class*="DivLeftContainer"], [class*="DivVideoDetailContainer"], [class*="DivColumnListContainer"], 
-                                    [class*="ArticleItemContainer"], [class*="DivContentFlexLayout"], [class*="SectionMediaCardContainer"], 
-                                    [class*="BasePlayerContainer"], [class*="DivVideoContainer"], [class*="video-container"], 
-                                    [class*="DivVideoWrapper"], [class*="DivPlayerContainer"], .xgplayer-container, [class*="xgplayer-container"] {
-                                        position: fixed !important;
-                                        top: 0 !important;
-                                        left: 0 !important;
-                                        width: 70vw !important;
-                                        max-width: 70vw !important;
-                                        height: 100vh !important;
-                                        max-height: 100vh !important;
-                                        z-index: 9999 !important;
-                                        background: #000 !important;
-                                        display: flex !important;
-                                        align-items: center !important;
-                                        justify-content: center !important;
-                                        margin: 0 !important;
-                                        padding: 0 !important;
-                                    }
-                                    video {
-                                        position: fixed !important;
-                                        top: 0 !important;
-                                        left: 0 !important;
-                                        width: 70vw !important;
-                                        max-width: 70vw !important;
-                                        height: 100vh !important;
-                                        max-height: 100vh !important;
-                                        object-fit: contain !important;
-                                        background: #000 !important;
-                                        z-index: 99999 !important;
-                                        transform: translateZ(0) !important;
-                                    }
-                                    /* 30% EPISODE LIST ON RIGHT */
-                                    [class*="RightPanelContainer"], [class*="DivShortDramaDetailRoot"] {
-                                        display: block !important;
-                                        position: fixed !important;
-                                        top: 0 !important;
-                                        right: 0 !important;
-                                        width: 30vw !important;
-                                        max-width: 30vw !important;
-                                        height: 100vh !important;
-                                        max-height: 100vh !important;
-                                        z-index: 999999 !important;
-                                        background: #141414 !important;
-                                        border-left: 1px solid #282828 !important;
-                                        overflow-y: auto !important;
-                                        padding: 16px !important;
-                                        box-sizing: border-box !important;
-                                    }
-                                    [class*="DivEpisodeGrid"] {
-                                        display: grid !important;
-                                        grid-template-columns: repeat(4, 1fr) !important;
-                                        gap: 8px !important;
-                                    }
-                                    [class*="ButtonEpisode"] {
-                                        font-size: 18px !important;
-                                        font-weight: bold !important;
-                                        height: 48px !important;
-                                        border-radius: 8px !important;
-                                    }
-                                `;
-                            } else {
-                                style.innerHTML = killToastsAndAds + `
-                                    /* 100% FULLSCREEN VIDEO */
-                                    [class*="RightPanelContainer"], [class*="DivShortDramaDetailRoot"] {
-                                        display: none !important;
-                                    }
-                                    [class*="DivLeftContainer"], [class*="DivVideoDetailContainer"], [class*="DivColumnListContainer"], 
-                                    [class*="ArticleItemContainer"], [class*="DivContentFlexLayout"], [class*="SectionMediaCardContainer"], 
-                                    [class*="BasePlayerContainer"], [class*="DivVideoContainer"], [class*="video-container"], 
-                                    [class*="DivVideoWrapper"], [class*="DivPlayerContainer"], .xgplayer-container, [class*="xgplayer-container"] {
-                                        position: fixed !important;
-                                        top: 0 !important;
-                                        left: 0 !important;
-                                        width: 100vw !important;
-                                        max-width: 100vw !important;
-                                        height: 100vh !important;
-                                        max-height: 100vh !important;
-                                        z-index: 9999 !important;
-                                        background: #000 !important;
-                                        display: flex !important;
-                                        align-items: center !important;
-                                        justify-content: center !important;
-                                    }
-                                    video {
-                                        position: fixed !important;
-                                        top: 0 !important;
-                                        left: 0 !important;
-                                        width: 100vw !important;
-                                        max-width: 100vw !important;
-                                        height: 100vh !important;
-                                        max-height: 100vh !important;
-                                        object-fit: contain !important;
-                                        background: #000 !important;
-                                        z-index: 99999 !important;
-                                        transform: translateZ(0) !important;
-                                    }
-                                `;
-                            }
                         };
 
                         window.__playNextEpisode = function() {
