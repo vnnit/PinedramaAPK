@@ -567,7 +567,7 @@ class PlayerActivity : AppCompatActivity() {
         // Toggle Episode Drawer and Virtual Mouse on Menu key or Info key or Settings key
         if (keyCode == KeyEvent.KEYCODE_MENU || keyCode == KeyEvent.KEYCODE_INFO || keyCode == KeyEvent.KEYCODE_SETTINGS) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                toggleDrawerAndMouse()
+                toggleLayoutAndMouse()
             }
             return true
         }
