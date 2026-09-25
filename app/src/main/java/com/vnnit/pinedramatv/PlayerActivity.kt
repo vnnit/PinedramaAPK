@@ -58,6 +58,8 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
 
+        TikTokCookieHelper.ensureCookiesSeeded(this)
+
         rootLayout = findViewById(R.id.playerRootLayout)
         playerView = findViewById(R.id.playerView)
         fallbackWebView = findViewById(R.id.fallbackWebView)
@@ -193,8 +195,7 @@ class PlayerActivity : AppCompatActivity() {
                 if (!next.startsWith("http://") && !next.startsWith("https://")) {
                     return true
                 }
-                view?.loadUrl(next)
-                return true
+                return false
             }
         }
 
@@ -206,6 +207,8 @@ class PlayerActivity : AppCompatActivity() {
         playerView.visibility = View.GONE
         fallbackWebView.visibility = View.VISIBLE
         progressBar.visibility = View.VISIBLE
+
+        TikTokCookieHelper.ensureCookiesSeeded(this)
 
         fallbackWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
@@ -274,6 +277,8 @@ class PlayerActivity : AppCompatActivity() {
                                         object-fit: contain !important;
                                         z-index: 9999 !important;
                                         background: #000 !important;
+                                        transform: translateZ(0) !important;
+                                        will-change: transform !important;
                                     }
                                 `;
                             } else {
@@ -294,6 +299,8 @@ class PlayerActivity : AppCompatActivity() {
                                         object-fit: contain !important;
                                         z-index: 999999 !important;
                                         background: #000 !important;
+                                        transform: translateZ(0) !important;
+                                        will-change: transform !important;
                                     }
                                 `;
                             }
@@ -322,11 +329,22 @@ class PlayerActivity : AppCompatActivity() {
                                 });
                             }
 
-                            // 3. Remove giant play button overlays
+                            // 3. Remove giant play button overlays & tooltips
                             const playIcons = document.querySelectorAll('[class*="play"], [class*="Play"]');
                             playIcons.forEach(btn => {
                                 if (btn.tagName !== 'VIDEO' && btn.querySelector('video') === null && btn.clientHeight > 80 && btn.clientHeight < 400) {
                                     btn.style.display = 'none';
+                                }
+                            });
+
+                            // Hide tooltip speech bubbles (e.g. "Vào chế độ toàn màn hình")
+                            const tooltips = Array.from(document.querySelectorAll('div, span, p')).filter(el => {
+                                const t = (el.innerText || '').toLowerCase();
+                                return t.includes('toàn màn hình') || t.includes('fullscreen');
+                            });
+                            tooltips.forEach(t => {
+                                if (t.clientHeight > 0 && t.clientHeight < 80) {
+                                    t.style.display = 'none';
                                 }
                             });
                         };
@@ -350,8 +368,7 @@ class PlayerActivity : AppCompatActivity() {
                 if (!next.startsWith("http://") && !next.startsWith("https://")) {
                     return true
                 }
-                view?.loadUrl(next)
-                return true
+                return false
             }
         }
 

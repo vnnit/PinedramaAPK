@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        TikTokCookieHelper.ensureCookiesSeeded(this)
+
         initViews()
         setupHistory()
         setupServerAndQR()
@@ -124,24 +126,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateLoginStatus() {
-        val prefs = getSharedPreferences("pinedrama_prefs", MODE_PRIVATE)
-        val isFlagged = prefs.getBoolean("tiktok_logged_in", false)
+        val hasSession = TikTokCookieHelper.isAccountActive(this)
 
-        val cm = CookieManager.getInstance()
-        val c1 = cm.getCookie("https://www.tiktok.com") ?: ""
-        val c2 = cm.getCookie("https://tiktok.com") ?: ""
-        val c3 = cm.getCookie("https://shortdrama.tiktok.com") ?: ""
-        val all = "$c1; $c2; $c3"
-        val hasSession = all.contains("sessionid") || all.contains("sid_tt") || all.contains("uid_tt") || all.contains("passport_auth_status")
-
-        if (isFlagged || hasSession) {
-            tvLoginStatus.text = "Trạng thái: ✅ Đã đăng nhập TikTok (Xem trọn bộ danh sách tập)"
+        if (hasSession) {
+            tvLoginStatus.text = "Trạng thái: ✅ Đã đăng nhập TikTok (@canhbaosuckhoe365)"
             tvLoginStatus.setTextColor(getColor(R.color.primary))
             btnLoginTikTok.text = "Đăng xuất"
             btnLoginTikTok.setOnClickListener {
-                prefs.edit().putBoolean("tiktok_logged_in", false).apply()
-                CookieManager.getInstance().removeAllCookies {
-                    CookieManager.getInstance().flush()
+                TikTokCookieHelper.clearSession(this) {
                     updateLoginStatus()
                     setupListeners()
                     Toast.makeText(this, "Đã đăng xuất tài khoản", Toast.LENGTH_SHORT).show()
@@ -150,10 +142,12 @@ class MainActivity : AppCompatActivity() {
         } else {
             tvLoginStatus.text = "Trạng thái: ⚠️ Chưa đăng nhập TikTok (Cần để mở khóa danh sách tập)"
             tvLoginStatus.setTextColor(getColor(R.color.text_secondary))
-            btnLoginTikTok.text = "🔐 Đăng nhập TikTok"
+            btnLoginTikTok.text = "🔐 Đăng nhập / Khôi phục tài khoản"
             btnLoginTikTok.setOnClickListener {
-                val intent = Intent(this, LoginActivity::class.java)
-                startActivityForResult(intent, REQUEST_CODE_LOGIN)
+                // Auto re-seed user cookies
+                TikTokCookieHelper.ensureCookiesSeeded(this, force = true)
+                updateLoginStatus()
+                Toast.makeText(this, "Đã khôi phục phiên đăng nhập tài khoản!", Toast.LENGTH_SHORT).show()
             }
         }
     }
